@@ -175,15 +175,23 @@
     color: var(--user);
     animation: pulse 1.1s ease-in-out infinite;
   }
-  .chat-empty { color: var(--muted); text-align: center; padding: 4rem 0 1rem; font-size: 1rem; align-self: center; }
+  .chat-empty {
+    color: var(--muted);
+    text-align: center;
+    font-size: 1rem;
+    align-self: center;
+    margin-top: auto;       /* push to lower-center of the chat panel */
+    padding: 1.5rem 1rem 2rem;
+  }
   .chat-empty .trigger-word {
     display: block;
     font-size: 3.4rem;
     font-weight: 800;
-    color: var(--text);
-    margin-top: .65rem;
+    color: var(--accent);   /* green */
+    margin-top: .55rem;
     letter-spacing: -.025em;
     text-transform: lowercase;
+    text-shadow: 0 2px 18px rgba(34, 197, 94, 0.25);
   }
   /* Big "Listening to your commands" banner */
   .listening-banner {
