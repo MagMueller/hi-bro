@@ -255,13 +255,48 @@
   .icon-btn:active { transform: scale(0.94); }
   .icon-btn.running { background: var(--accent-stop); box-shadow: 0 1px 6px rgba(239, 68, 68, 0.3); }
   .icon-btn svg { width: 13px; height: 13px; }
-  /* Hide the small text indicator now that the big chat display conveys state */
+  /* Hide the small text indicator now that the persistent trigger conveys state */
   .status-text { display: none; }
-  /* Big clickable trigger word in the empty chat */
-  .chat-empty.clickable { cursor: pointer; transition: opacity .15s, transform .15s; }
-  .chat-empty.clickable:hover { opacity: .82; }
-  .chat-empty.clickable:hover .trigger-word { transform: scale(1.025); }
-  .chat-empty .trigger-word { transition: transform .15s; }
+  /* Persistent "Say bro" call-to-action — always visible above the controls */
+  .persistent-trigger {
+    display: flex;
+    justify-content: center;
+    padding: .9rem 1rem .55rem;
+    border-top: 1px solid var(--border);
+  }
+  .persistent-trigger .inner {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: .35rem .9rem;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .1rem;
+    font-family: inherit;
+    transition: transform .15s, opacity .15s;
+  }
+  .persistent-trigger .inner:hover { transform: translateY(-1px); }
+  .persistent-trigger .inner:hover .word { transform: scale(1.04); }
+  .persistent-trigger.listening .inner { opacity: .55; cursor: default; }
+  .persistent-trigger.listening .inner:hover { transform: none; }
+  .persistent-trigger.listening .inner:hover .word { transform: none; }
+  .persistent-trigger .label {
+    font-size: .8rem;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .persistent-trigger .word {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -.025em;
+    text-transform: lowercase;
+    text-shadow: 0 2px 18px rgba(34, 197, 94, 0.3);
+    transition: transform .15s;
+    line-height: 1.05;
+  }
   /* "First, add your API key" call-to-action — replaces the play button when no key */
   .needs-key-btn {
     display: inline-flex; align-items: center; gap: .55rem;
@@ -350,6 +385,39 @@
   }
   details.settings-subgroup[open] > summary::before { transform: rotate(90deg); }
   .settings-subgroup-body { display: flex; flex-direction: column; padding-top: .35rem; }
+  /* About / privacy block */
+  .about-body p {
+    font-size: .78rem;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0 0 .65rem;
+  }
+  .about-body p:last-child { margin-bottom: 0; }
+  .about-body strong { color: var(--text); font-weight: 600; }
+  .about-body code {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: .04em .35em;
+    border-radius: 4px;
+    font-size: .85em;
+    color: var(--accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .about-body .repo-link-row { margin-top: .9rem; }
+  .about-body .link-btn {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .5rem .8rem;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: .76rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all .12s;
+  }
+  .about-body .link-btn:hover { border-color: var(--user); color: var(--user); }
+  .about-body .link-btn svg { flex-shrink: 0; }
   .settings-panel label.checkbox-row {
     display: flex; align-items: center; gap: .55rem;
     margin: .85rem 0 .2rem;
@@ -478,6 +546,12 @@
         </div>
       </div>
       <div id="chat" class="chat"></div>
+      <div id="persistentTrigger" class="persistent-trigger">
+        <button class="inner" type="button">
+          <span class="label">Say</span>
+          <span class="word">bro</span>
+        </button>
+      </div>
       <div class="chat-controls">
         <span id="statusText" class="status-text">Stopped</span>
         <button id="toggleBtn" class="icon-btn" aria-label="Start">
@@ -552,6 +626,32 @@
           </details>
         </div>
       </details>
+
+      <details class="settings-group">
+        <summary><h3>About &amp; privacy</h3></summary>
+        <div class="settings-group-body about-body">
+          <p>
+            Your microphone is <strong>always on while listening is enabled</strong>,
+            but everything you say stays inside your browser. Chrome's local
+            Web Speech recognizer scans for the trigger word
+            (<code id="aboutTriggerWord">bro</code>) without sending any audio
+            to our server.
+          </p>
+          <p>
+            Only <strong>after the trigger word fires</strong>, the next ~3 seconds
+            of speech are recorded with your microphone, uploaded to
+            <strong>ElevenLabs Scribe</strong> for high-quality transcription, and
+            the resulting text is sent to <strong>Browser Use Cloud</strong> as
+            the task. Nothing else leaves your device.
+          </p>
+          <p class="repo-link-row">
+            <a class="link-btn" href="https://github.com/MagMueller/hi-bro" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.05c-3.2.69-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.07.78 2.16v3.2c0 .31.21.67.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+              Open source on GitHub
+            </a>
+          </p>
+        </div>
+      </details>
     </div>
   </div>
 </div>
@@ -571,9 +671,8 @@ for (const f of ['wakeWord','apiKey','proxyCC']) {
     settings[f] = el.value;
     save();
     if (f === 'wakeWord') {
-      // Re-render the empty placeholder + status text with the new word.
-      try { renderChat(); } catch {}
-      try { if (typeof running !== 'undefined' && running && !armed && !taskInFlight) {
+      try { refreshPersistentTrigger(); } catch {}
+      try { if (typeof running !== 'undefined' && running && !armed) {
         setStatusState('live', waitingLabel());
       } } catch {}
     }
@@ -657,24 +756,7 @@ function renderChat() {
   chatEl.innerHTML = '';
   const s = getActiveSession();
   if (!s.chat.length) {
-    const empty = document.createElement('div');
-    empty.className = 'chat-empty';
-    const w = (getWakeWords()[0] || 'trigger');
-    empty.innerHTML = 'Say<span class="trigger-word"></span>';
-    empty.querySelector('.trigger-word').textContent = w;
-    // If we're not already listening, allow click-to-start.
-    if (!running) {
-      empty.classList.add('clickable');
-      empty.title = 'Click to start listening';
-      empty.onclick = () => {
-        if (running) return;
-        ensureAudioCtx();
-        primeAudio();
-        startListening();
-      };
-    }
-    chatEl.appendChild(empty);
-    return;
+    return; // empty state — persistent trigger element handles the call-to-action
   }
   for (const m of s.chat) {
     const div = document.createElement('div');
@@ -980,6 +1062,30 @@ function refreshActiveStatus() {
   if (s.inFlight) setStatusState('busy', 'Working…');
   else            setStatusState('live', waitingLabel());
 }
+// Persistent "Say bro" call-to-action — always visible above the controls.
+const persistentTriggerEl = document.getElementById('persistentTrigger');
+function refreshPersistentTrigger() {
+  const w = (getWakeWords()[0] || 'trigger');
+  persistentTriggerEl.querySelector('.word').textContent = w;
+  persistentTriggerEl.classList.toggle('listening', !!running);
+  const inner = persistentTriggerEl.querySelector('.inner');
+  if (running) {
+    inner.title = 'Listening — say "' + w + '"';
+  } else {
+    inner.title = 'Click to start listening';
+  }
+  // Keep the About / privacy section's example trigger word in sync.
+  const aboutWord = document.getElementById('aboutTriggerWord');
+  if (aboutWord) aboutWord.textContent = w;
+}
+persistentTriggerEl.querySelector('.inner').addEventListener('click', () => {
+  if (running) return;
+  if (!settings.apiKey) { openSettings(); return; }
+  ensureAudioCtx();
+  primeAudio();
+  startListening();
+});
+
 const liveBtn = document.getElementById('liveBtn');
 function refreshLiveBtn() {
   const s = getActiveSession();
@@ -1009,7 +1115,7 @@ function startListening() {
   setRunningUI(true);
   setStatusState('live', waitingLabel());
   startWebSpeechMode();
-  renderChat(); // drop clickable affordance from the empty placeholder
+  refreshPersistentTrigger();
 }
 function stopListening() {
   running = false;
@@ -1026,7 +1132,7 @@ function stopListening() {
   stopTTS();
   setRunningUI(false);
   setStatusState('idle', 'Stopped');
-  renderChat(); // re-add clickable affordance
+  refreshPersistentTrigger();
 }
 
 // Web Speech fallback (only used if no ELEVENLABS_API_KEY env var on the server).
@@ -1479,6 +1585,7 @@ async function boot() {
   renderAll();
   refreshLiveBtn();
   refreshControls();
+  refreshPersistentTrigger();
   checkTtsAvailable();
   await listDevices();
 
