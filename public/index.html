@@ -1062,7 +1062,7 @@ async function captureCommandAfterTrigger() {
   const startedAt = Date.now();
   const SILENCE_RMS  = 0.012;
   const SILENCE_MS   = 1500;
-  const MIN_DURATION = 700;    // ensure the listening banner stays up at least ~2.2s
+  const MIN_DURATION = 1500;   // give the user ~3s minimum to speak before silence can stop us
   const MAX_DURATION = 12000;
   let silenceStart = null;
 
