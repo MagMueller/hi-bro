@@ -39,8 +39,8 @@
     color: var(--text);
     -webkit-font-smoothing: antialiased;
   }
-  h1 { font-size: 1.05rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
-  h2 { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 .65rem; }
+  h1 { font-size: 1rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 .65rem; }
 
   .app {
     display: grid;
@@ -55,11 +55,12 @@
   .panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1rem;
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    box-shadow: var(--shadow-sm);
   }
   .panel.flex { flex: 1; }
 
@@ -121,6 +122,10 @@
     border-color: var(--user);
     background: var(--user-soft);
     box-shadow: 0 0 0 1px var(--user);
+  }
+  .session-row.busy {
+    border-color: var(--user);
+    background: var(--user-soft);
   }
   .session-row.armed {
     border-color: var(--warn);
@@ -1180,6 +1185,7 @@ function renderSessions() {
     const isActive = s.localId === sessionsStore.active;
     row.className = 'session-row' + (isActive ? ' active' : '');
     if (s.browserUseSessionId) row.classList.add('live');
+    if (s.inFlight) row.classList.add('busy');
     if (isActive && armed) row.classList.add('armed');
 
     // Editing mode: show an input for the trigger word.
@@ -1867,6 +1873,7 @@ async function dispatchCommand() {
       supersededAny = true;
     }
   }
+  session.inFlight = false; // will be re-set below after the new dispatch
   // Convert any in-flight pending chat bubble to a "Received follow-up" line.
   for (const m of session.chat) {
     if (m.role === 'pending') { m.role = 'system'; m.text = 'Received follow-up'; }
@@ -1882,9 +1889,12 @@ async function dispatchCommand() {
   session.tasks.push(taskRecord);
   // Live "working" bubble in the chat, tied to this taskRecord by id.
   session.chat.push({ role: 'pending', text: 'working', taskId: taskRecord.id });
+  session.inFlight = true;    // per-session "working" state for gallery + sidebar
   saveSessions();
   renderTasks();
+  renderSessions();           // picks up the busy state
   if (sessionsStore.active === session.localId) renderChat();
+  if (settings.viewMode === 'gallery') renderGallery();
   setStatusState('busy', 'Working…');
   dingDispatched();
 
@@ -1913,7 +1923,9 @@ async function dispatchCommand() {
     if (!r.ok) {
       taskRecord.status = 'error';
       taskRecord.output = j.error || 'dispatch failed';
-      saveSessions(); renderTasks();
+      session.inFlight = false;
+      saveSessions(); renderTasks(); renderSessions();
+      if (settings.viewMode === 'gallery') renderGallery();
       addSystem('Dispatch failed: ' + (j.error || 'unknown'), true);
       dingError();
       setStatusState(running ? 'live' : 'idle', running ? waitingLabel() : 'Stopped');
@@ -1927,7 +1939,9 @@ async function dispatchCommand() {
   } catch (e) {
     taskRecord.status = 'error';
     taskRecord.output = e.message;
-    saveSessions(); renderTasks();
+    session.inFlight = false;
+    saveSessions(); renderTasks(); renderSessions();
+    if (settings.viewMode === 'gallery') renderGallery();
     dingError();
     setStatusState(running ? 'live' : 'idle', running ? waitingLabel() : 'Stopped');
   }
@@ -1960,6 +1974,8 @@ function startPolling(session, taskRecord) {
         if (pending) pending.text = newSteps[newSteps.length - 1];
         saveSessions();
         if (sessionsStore.active === session.localId) { renderTasks(); renderChat(); }
+        // Gallery cards need live updates for ALL sessions, not just active.
+        if (settings.viewMode === 'gallery') renderGallery();
       }
 
       if (j.status && j.status !== 'running') {
@@ -1968,6 +1984,7 @@ function startPolling(session, taskRecord) {
         const isError = j.status === 'error';
         taskRecord.status = isError ? 'error' : 'done';
         taskRecord.output = j.output || '(no output)';
+        session.inFlight = false;
         const finalText = typeof taskRecord.output === 'string' && taskRecord.output.trim()
           ? taskRecord.output : 'no output returned';
         // Convert the pending bubble into the real assistant message in place.
@@ -1980,7 +1997,9 @@ function startPolling(session, taskRecord) {
           session.chat.push({ role: isError ? 'system err' : 'assistant', text: finalText });
         }
         saveSessions();
+        renderSessions(); // pick up cleared busy state
         if (sessionsStore.active === session.localId) { renderTasks(); renderChat(); }
+        if (settings.viewMode === 'gallery') renderGallery();
         if (isError) dingError(); else dingDone();
         speak(finalText);
         if (sessionsStore.active === session.localId) {
