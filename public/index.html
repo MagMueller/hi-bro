@@ -889,17 +889,26 @@ async function listDevices() {
   const devs = await navigator.mediaDevices.enumerateDevices();
   micSelect.innerHTML = '';
   speakerSelect.innerHTML = '';
+  let firstMic = null;
   for (const d of devs) {
     if (d.kind === 'audioinput') {
       const o = document.createElement('option');
       o.value = d.deviceId; o.textContent = d.label || `mic ${d.deviceId.slice(0,6)}`;
       micSelect.appendChild(o);
+      if (!firstMic) firstMic = d.deviceId;
     }
     if (d.kind === 'audiooutput') {
       const o = document.createElement('option');
       o.value = d.deviceId; o.textContent = d.label || `speaker ${d.deviceId.slice(0,6)}`;
       speakerSelect.appendChild(o);
     }
+  }
+  // If the stored micId no longer exists (device unplugged), or none was set,
+  // auto-select the first available microphone.
+  const storedValid = settings.micId && [...micSelect.options].some(o => o.value === settings.micId);
+  if (!storedValid && firstMic) {
+    settings.micId = firstMic;
+    save();
   }
   if (settings.micId)     micSelect.value     = settings.micId;
   if (settings.speakerId) speakerSelect.value = settings.speakerId;
@@ -1255,20 +1264,39 @@ async function captureCommandAfterTrigger() {
   // gets recorded into the Scribe upload.
   await new Promise(r => setTimeout(r, 280));
 
-  try {
-    commandStream = await navigator.mediaDevices.getUserMedia({
+  async function openMic(useStoredId) {
+    return navigator.mediaDevices.getUserMedia({
       audio: {
-        deviceId: settings.micId ? { exact: settings.micId } : undefined,
+        deviceId: (useStoredId && settings.micId) ? { exact: settings.micId } : undefined,
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
       },
     });
+  }
+  try {
+    commandStream = await openMic(true);
   } catch (e) {
-    addSystem('Mic error: ' + e.message, true);
-    armed = false;
-    if (wasRunning && SR) try { startListening(); } catch {}
-    return;
+    // Stale or invalid deviceId — drop the constraint and try the system default.
+    const isConstraint = e && (e.name === 'OverconstrainedError' || /constraint/i.test(e.message || ''));
+    if (isConstraint) {
+      settings.micId = '';
+      save();
+      try { await listDevices(); } catch {}
+      try {
+        commandStream = await openMic(false);
+      } catch (e2) {
+        addSystem('I need to select a microphone — open Settings → Audio devices', true);
+        armed = false;
+        if (wasRunning && SR) try { startListening(); } catch {}
+        return;
+      }
+    } else {
+      addSystem('Mic error: ' + e.message, true);
+      armed = false;
+      if (wasRunning && SR) try { startListening(); } catch {}
+      return;
+    }
   }
 
   addPlaceholderUserBubble();
