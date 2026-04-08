@@ -67,7 +67,7 @@ async function ensureWorkspace(apiKey, explicitId) {
 
 // Hidden suffix appended to every task. Tells the BU agent to keep the response
 // short and TTS-friendly. Never visible to the user in the chat.
-const TASK_FORMAT_SUFFIX = '\n\n---\nIMPORTANT: Keep your final answer concise and to the point. Markdown formatting (bold, bullet lists, short tables, headings) is welcome — just avoid verbosity.';
+const TASK_FORMAT_SUFFIX = '\n\n---\nIMPORTANT: Keep your final answer concise and to the point. Markdown formatting (bold, bullet lists, short tables, headings) is welcome.';
 
 // =========================================================================
 // Dispatch a task to a Browser Use session
