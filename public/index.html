@@ -243,6 +243,23 @@
   .icon-btn:active { transform: scale(0.96); }
   .icon-btn.running { background: var(--accent-stop); box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3); }
   .icon-btn svg { width: 18px; height: 18px; }
+  /* "First, add your API key" call-to-action — replaces the play button when no key */
+  .needs-key-btn {
+    display: inline-flex; align-items: center; gap: .55rem;
+    padding: .7rem 1.1rem;
+    background: var(--warn); color: #1a1a08;
+    border: 0; border-radius: 999px;
+    font-size: .85rem; font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    box-shadow: 0 2px 14px rgba(250, 204, 21, 0.3);
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  .needs-key-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  .needs-key-btn svg { width: 16px; height: 16px; }
+  .needs-key-btn[hidden] { display: none; }
+  .icon-btn[hidden] { display: none; }
+  .status-text[hidden] { display: none; }
   .status-text { font-size: .76rem; color: var(--muted); min-width: 90px; transition: color .15s; }
   .status-text.live  { color: var(--accent); }
   .status-text.armed { color: var(--warn); animation: pulse 0.7s ease-in-out infinite; }
@@ -402,6 +419,10 @@
         <button id="toggleBtn" class="icon-btn" aria-label="Start">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
+        <button id="needKeyBtn" class="needs-key-btn" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          First, add your Browser Use API key
+        </button>
       </div>
       <details class="log-section">
         <summary>Log (everything heard) — <span id="wordCount">0</span> words</summary>
@@ -445,12 +466,12 @@
         <h3>Browser Use</h3>
         <label>API key</label>
         <input id="apiKey" type="password" placeholder="bu_..." />
-        <label>Workspace</label>
+        <label>Persistent file system</label>
         <select id="workspaceSelect">
           <option value="">Create new</option>
-          <option value="__none__">No workspace</option>
+          <option value="__none__">None</option>
         </select>
-        <label>Profile</label>
+        <label>Profile for persistent authentication</label>
         <select id="profileSelect"><option value="">None</option></select>
         <label>Proxy country code</label>
         <input id="proxyCC" placeholder="us" />
@@ -496,8 +517,10 @@ speakResultsEl.addEventListener('change', () => { settings.speakResults = speakR
 if (settings.elevenKey || settings.voiceId) {
   delete settings.elevenKey; delete settings.voiceId; save();
 }
-// API key change → refresh dropdowns + bu sessions
-document.getElementById('apiKey').addEventListener('change', refreshAllRemoteLists);
+// API key change → refresh dropdowns + bu sessions + show/hide play button
+const apiKeyInput = document.getElementById('apiKey');
+apiKeyInput.addEventListener('input', () => { try { refreshControls(); } catch {} });
+apiKeyInput.addEventListener('change', refreshAllRemoteLists);
 
 // =========================================================================
 // Local sessions (multi-session state, persisted in localStorage)
@@ -534,6 +557,7 @@ function setActiveSession(localId) {
   sessionsStore.active = localId;
   saveSessions();
   renderAll();
+  refreshLiveBtn();
 }
 
 // =========================================================================
@@ -878,6 +902,15 @@ function refreshLiveBtn() {
     liveBtn.hidden = true;
   }
 }
+// Show the play button only when an API key is set; otherwise show the
+// pulsing yellow "First, add your Browser Use API key" call-to-action.
+const needKeyBtn = document.getElementById('needKeyBtn');
+function refreshControls() {
+  const has = !!(settings.apiKey && settings.apiKey.trim());
+  toggleBtn.hidden  = !has;
+  statusText.hidden = !has;
+  needKeyBtn.hidden = has;
+}
 
 function startListening() {
   if (running) return;
@@ -1213,6 +1246,7 @@ async function dispatchCommand() {
     session.browserUseSessionId = j.sessionId;
     saveSessions();
     renderSessions();
+    refreshLiveBtn();
     startPolling(session, taskRecord);
   } catch (e) {
     taskRecord.status = 'error';
@@ -1307,6 +1341,7 @@ async function destroyLocalSession(localId) {
   saveSessions();
   if (!sessionsStore.list.length) newLocalSession();
   renderAll();
+  refreshLiveBtn();
 }
 
 // =========================================================================
@@ -1329,6 +1364,7 @@ const modalBackdrop = document.getElementById('modalBackdrop');
 function openSettings()  { modalBackdrop.dataset.open = 'true'; }
 function closeSettings() { modalBackdrop.dataset.open = 'false'; }
 document.getElementById('settingsBtn').onclick = openSettings;
+needKeyBtn.onclick = openSettings;
 document.getElementById('modalCloseBtn').onclick = closeSettings;
 modalBackdrop.addEventListener('click', (ev) => {
   if (ev.target === modalBackdrop) closeSettings();
@@ -1351,9 +1387,17 @@ function unlockAudioOnce() {
 async function boot() {
   if (!sessionsStore.list.length) newLocalSession();
   renderAll();
+  refreshLiveBtn();
+  refreshControls();
   checkTtsAvailable();
   await listDevices();
-  if (settings.apiKey) refreshAllRemoteLists();
+
+  if (!settings.apiKey) {
+    // First-run experience: open settings immediately so the user knows what to do.
+    openSettings();
+    return;
+  }
+  refreshAllRemoteLists();
 
   if (!SR) return;
   try {
